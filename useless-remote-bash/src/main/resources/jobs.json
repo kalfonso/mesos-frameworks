@@ -1,0 +1,14 @@
+{
+  "jobs": [
+    {
+      "cpus": 0.5,
+      "mem": 100,
+      "command": "sleep 60; echo hello"
+    },
+    {
+      "cpus": 0.3,
+      "mem": "90",
+      "command": "sleep 35; echo $((30 + 245))"
+    }
+  ]
+}
