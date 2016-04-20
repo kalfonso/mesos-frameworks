@@ -1,5 +1,6 @@
 package io.shinto.remotebash;
 
+import org.apache.curator.framework.CuratorFramework;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
@@ -18,21 +19,27 @@ public class UselessRemoteBash implements Scheduler {
 
     private final Deque<Job> pendingJobs = new ConcurrentLinkedDeque<Job>();
     private final ConcurrentMap<String, Job> jobs = new ConcurrentHashMap<String, Job>(16, 0.9f, 1);
+    private final CuratorFramework curator;
     ReentrantLock lock = new ReentrantLock();
 
-    public UselessRemoteBash(List<Job> jobList) {
+    public UselessRemoteBash(List<Job> jobList, CuratorFramework curator) {
         for (Job job : jobList) {
             pendingJobs.add(job);
             System.out.println("*** Adding job: " + job.getCommand());
         }
+        this.curator = curator;
     }
 
     public void registered(SchedulerDriver driver, FrameworkID frameworkID, MasterInfo masterInfo) {
         System.out.println("Registered with framework: " + frameworkID);
+        try {
+            curator.create().creatingParentsIfNeeded().forPath("/sampleframework/id", frameworkID.getValue().getBytes("UTF-8"));
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
     }
 
     public void reregistered(SchedulerDriver schedulerDriver, MasterInfo masterInfo) {
-
     }
 
     public void statusUpdate(SchedulerDriver driver, TaskStatus status) {
@@ -51,6 +58,14 @@ public class UselessRemoteBash implements Scheduler {
             case TASK_LOST:
             case TASK_ERROR:
                 job.fail();
+                if (job.getStatus().equals(JobState.PENDING)) {
+                    try {
+                        lock.lock();
+                        pendingJobs.add(job);
+                    } finally {
+                        lock.unlock();
+                    }
+                }
                 break;
             default:
                 break;
