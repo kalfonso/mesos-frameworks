@@ -42,7 +42,10 @@ public class Job {
                                 .setType(Value.Type.SCALAR)
                                 .setScalar(Value.Scalar.newBuilder().setValue(mem))
                 )
-                .setCommand(CommandInfo.newBuilder().setValue(command))
+                .setCommand(CommandInfo.newBuilder()
+                        .setShell(true)
+                        .setValue("bash -c \"" + command + "\"")
+                        .build())
                 .setSlaveId(targetSlave)
                 .build();
     }

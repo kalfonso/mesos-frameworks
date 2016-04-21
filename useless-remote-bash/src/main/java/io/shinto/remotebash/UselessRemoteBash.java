@@ -137,6 +137,8 @@ public class UselessRemoteBash implements Scheduler {
                     toLaunch.add(job.makeTask(offer.getSlaveId()));
                     offerCpus -= job.getCpus();
                     offerMem -= job.getMem();
+
+                    job.launch();
                     launchedJobs.add(job);
                     jobs.put(job.getId(), job);
                 }
