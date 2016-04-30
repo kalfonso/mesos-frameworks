@@ -43,6 +43,14 @@ public class ShellCommandExecutor implements Executor {
         Thread thread = new Thread(new TaskProcess(taskInfo, taskProcess, this));
         thread.setDaemon(true);
         thread.start();
+        try {
+            int timeoutMilliSeconds = 60000;
+            thread.join(timeoutMilliSeconds);
+        } catch (InterruptedException e) {
+            System.out.println("Task: " + taskInfo.toString() + " took more than 1 minute");
+        } finally {
+            processes.remove(taskInfo.getTaskId());
+        }
     }
 
     private Process startProcess(TaskInfo taskInfo) {
