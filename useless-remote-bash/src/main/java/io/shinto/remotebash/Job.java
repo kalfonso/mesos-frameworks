@@ -1,9 +1,12 @@
 package io.shinto.remotebash;
 
+import com.google.protobuf.ByteString;
+import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.*;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.UnsupportedEncodingException;
 import java.util.UUID;
 
 /**
@@ -24,30 +27,51 @@ public class Job {
         retries = 3;
     }
 
-    public TaskInfo makeTask(SlaveID targetSlave) {
+    public TaskInfo makeTask(FrameworkID frameworkId, SlaveID targetSlave) {
         TaskID taskID = TaskID.newBuilder()
                 .setValue(id)
                 .build();
 
-        return TaskInfo.newBuilder()
-                .setName("task " + taskID.getValue())
-                .setTaskId(taskID)
-                .addResources(Resource.newBuilder()
-                                .setName("cpus")
-                                .setType(Value.Type.SCALAR)
-                                .setScalar(Value.Scalar.newBuilder().setValue(cpus))
-                )
-                .addResources(Resource.newBuilder()
-                                .setName("mem")
-                                .setType(Value.Type.SCALAR)
-                                .setScalar(Value.Scalar.newBuilder().setValue(mem))
-                )
-                .setCommand(CommandInfo.newBuilder()
-                        .setShell(true)
-                        .setValue("bash -c \"" + command + "\"")
-                        .build())
-                .setSlaveId(targetSlave)
+        ExecutorID executorId = ExecutorID.newBuilder()
+                .setValue(this.id)
                 .build();
+
+        CommandInfo commandInfo = CommandInfo.newBuilder()
+                .setValue("java -jar useless-remote-bash-executor-1.0-SNAPSHOT.jar")
+                .addUris(CommandInfo.URI.newBuilder()
+                        .setValue("http://192.168.33.10:8000/useless-remote-bash-executor-1.0-SNAPSHOT.jar")
+                        .build()
+                )
+                .build();
+
+        ExecutorInfo executorInfo = ExecutorInfo.newBuilder()
+                .setExecutorId(executorId)
+                .setFrameworkId(frameworkId)
+                .setCommand(commandInfo)
+                .build();
+
+        try {
+            String taskData = command ;
+            return TaskInfo.newBuilder()
+                    .setName("task " + taskID.getValue())
+                    .setTaskId(taskID)
+                    .addResources(Resource.newBuilder()
+                                    .setName("cpus")
+                                    .setType(Value.Type.SCALAR)
+                                    .setScalar(Value.Scalar.newBuilder().setValue(cpus))
+                    )
+                    .addResources(Resource.newBuilder()
+                                    .setName("mem")
+                                    .setType(Value.Type.SCALAR)
+                                    .setScalar(Value.Scalar.newBuilder().setValue(mem))
+                    )
+                    .setData(ByteString.copyFrom(taskData.getBytes("UTF-8")))
+                    .setExecutor(executorInfo)
+                    .setSlaveId(targetSlave)
+                    .build();
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static Job fromJson(JSONObject jsonObject) throws JSONException {

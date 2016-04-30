@@ -17,10 +17,11 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class UselessRemoteBash implements Scheduler {
 
+    private FrameworkID frameworkId;
     private final Deque<Job> pendingJobs = new ConcurrentLinkedDeque<Job>();
     private final ConcurrentMap<String, Job> jobs = new ConcurrentHashMap<String, Job>(16, 0.9f, 1);
     private final CuratorFramework curator;
-    ReentrantLock lock = new ReentrantLock();
+    private ReentrantLock lock = new ReentrantLock();
 
     public UselessRemoteBash(List<Job> jobList, CuratorFramework curator) {
         for (Job job : jobList) {
@@ -33,6 +34,7 @@ public class UselessRemoteBash implements Scheduler {
     public void registered(SchedulerDriver driver, FrameworkID frameworkID, MasterInfo masterInfo) {
         System.out.println("Registered with framework: " + frameworkID);
         try {
+            this.frameworkId = frameworkID;
             curator.create().creatingParentsIfNeeded().forPath("/sampleframework/id", frameworkID.getValue().getBytes("UTF-8"));
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -134,7 +136,7 @@ public class UselessRemoteBash implements Scheduler {
             for (Job job : pendingJobs) {
                 if (job.fitsIn(offerCpus, offerMem)) {
                     System.out.println("*** Analysing job: " + job.getCommand());
-                    toLaunch.add(job.makeTask(offer.getSlaveId()));
+                    toLaunch.add(job.makeTask(frameworkId, offer.getSlaveId()));
                     offerCpus -= job.getCpus();
                     offerMem -= job.getMem();
 
@@ -145,6 +147,8 @@ public class UselessRemoteBash implements Scheduler {
             }
 
             pendingJobs.removeAll(launchedJobs);
+        } catch (Exception e) {
+            e.printStackTrace();
         } finally {
             lock.unlock();
         }
